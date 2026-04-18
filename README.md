@@ -2,15 +2,17 @@
 
 Access Facebook for specific information/updates without generating advertising revenue for that asshole.
 
-**Birthday Bot**: Automatically identifies when it's a contact's birthday, posts "Happy Birthday" on their Facebook wall, and notifies you via email and SMS for personal follow-up.
+**Birthday Bot**: Scrapes your Facebook friends' birthdays, stores them locally, and notifies you via email and SMS so you can follow up personally.
 
 ## Features
 
 - Scrapes birthdays from Facebook's events page (no Meta API needed)
-- Posts "Happy Birthday! [Name]" on each friend's wall
+- **Scrape once, notify daily** — one-time scrape stores all birthdays locally; daily cron checks the store and notifies without touching Facebook
 - Sends you email and SMS with today's birthday list
 - Automated login with manual fallback (2FA, captcha)
-- Session persistence to avoid repeated logins
+- Persistent browser profile to avoid repeated logins
+- Anti-detection stealth (playwright-stealth, human-like timing, realistic fingerprints)
+- Fallback: paste HTML manually if scraping fails
 
 ## Setup
 
@@ -50,51 +52,64 @@ cp .env.example .env
 - `NOTIFY_SMS_ENABLED` – `true` or `false`
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` – from [Twilio Console](https://console.twilio.com/)
 
-### 3. First run (login)
+### 3. First run (login + scrape)
 
-On first run, you'll need to log in. If automated login fails (2FA, captcha), the bot will open a visible browser for you to log in manually. The session is saved in `.auth/state.json` for future runs.
-
-```bash
-fuckzuck --manual-login
-```
-
-Or with credentials in `.env`:
+On first run, log in and scrape all birthdays:
 
 ```bash
-fuckzuck --no-headless
+# Manual login (opens browser for you to log in)
+fuckzuck scrape --manual-login
+
+# Or with credentials in .env
+fuckzuck scrape --no-headless
 ```
+
+This stores all your friends' birthdays in `.data/birthdays.json`. You only need to do this once (or periodically to pick up new friends).
 
 ## Usage
 
-**Dry run** (fetch and print birthdays only; no posts, no notifications):
+### Commands
+
+**`scrape`** — One-time scrape of all birthdays from Facebook, stored locally:
 
 ```bash
-fuckzuck --dry-run
+fuckzuck scrape
+fuckzuck scrape --manual-login     # manual browser login
+fuckzuck scrape --no-headless      # visible browser window
 ```
 
-**Full run** (post + notify):
+**`check`** — Check stored birthdays for today and send notifications (no Facebook access):
 
 ```bash
-fuckzuck
+fuckzuck check                     # notify via email + SMS
+fuckzuck check --dry-run           # just print, don't notify
 ```
 
-**Limit posts** (for testing):
+**`live`** — Live scrape today's birthdays from Facebook and notify (also saves to store):
 
 ```bash
-fuckzuck --limit 2
+fuckzuck live                      # scrape + notify
+fuckzuck live --dry-run            # scrape + print only
+fuckzuck live --manual-login       # manual login
 ```
 
-**Manual login** (skip automated login):
+**`status`** — Show stored birthday data info:
 
 ```bash
-fuckzuck --manual-login
+fuckzuck status
 ```
+
+### Recommended workflow
+
+1. **Once**: `fuckzuck scrape --manual-login` (scrape all birthdays)
+2. **Daily cron**: `fuckzuck check` (notify from stored data, no Facebook access)
+3. **Periodically**: `fuckzuck scrape` (refresh to pick up new friends)
 
 ## Scheduling
 
-### Option A: cron (Linux/macOS)
+### cron (Linux/macOS)
 
-Run daily at 8 AM:
+Run daily check at 8 AM (no Facebook access needed):
 
 ```bash
 crontab -e
@@ -103,23 +118,13 @@ crontab -e
 Add:
 
 ```
-0 8 * * * cd /path/to/FuckZuck && /path/to/python -m fuckzuck.main
+0 8 * * * cd /path/to/FuckZuck && /path/to/python -m fuckzuck.main check
 ```
 
-Replace `/path/to/FuckZuck` and `/path/to/python` with your actual paths.
+Monthly re-scrape at 3 AM on the 1st:
 
-### Option B: schedule (in-process)
-
-```python
-import schedule
-import time
-from fuckzuck.main import main
-
-schedule.every().day.at("08:00").do(main)
-
-while True:
-    schedule.run_pending()
-    time.sleep(60)
+```
+0 3 1 * * cd /path/to/FuckZuck && /path/to/python -m fuckzuck.main scrape
 ```
 
 ## Fallback: manual HTML paste
@@ -130,19 +135,20 @@ If scraping fails:
 2. Scroll to load all birthdays
 3. Right-click the birthdays content div → Inspect → Copy element
 4. Paste into `birthdays_html.html` in the project root
-5. Run the bot again (it will parse from the file)
+5. Run `fuckzuck live` (it will parse from the file)
 
 ## Project structure
 
 ```
 FuckZuck/
 ├── src/fuckzuck/
-│   ├── auth.py       # login, session persistence
+│   ├── auth.py       # stealth login, persistent browser profile
 │   ├── birthdays.py  # scrape & parse birthdays
-│   ├── main.py       # entry point
-│   ├── notify.py     # email + SMS
-│   └── post.py       # post to friend wall
-├── .auth/            # session state (gitignored)
+│   ├── main.py       # CLI entry point (scrape/check/live/status)
+│   ├── notify.py     # email + SMS notifications
+│   └── store.py      # local birthday JSON storage
+├── .auth/            # browser profile (gitignored)
+├── .data/            # birthday database (gitignored)
 ├── .env.example
 ├── pyproject.toml
 └── README.md

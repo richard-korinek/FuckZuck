@@ -68,21 +68,13 @@ def _send_sms(
         return False
 
 
-def notify_user(
-    birthdays: list[Birthday],
-    *,
-    post_success: int = 0,
-    post_fail: int = 0,
-    errors: list[str] | None = None,
-) -> tuple[bool, bool]:
+def notify_user(birthdays: list[Birthday]) -> tuple[bool, bool]:
     """
     Send email and SMS notifications to the user about today's birthdays.
     Returns (email_ok, sms_ok).
     """
     names = [b.name for b in birthdays]
     body = _get_message(names)
-    if post_fail > 0 and errors:
-        body += f"\n\nPost failures: {post_fail}. Details: {'; '.join(errors[:5])}"
 
     email_ok = False
     sms_ok = False

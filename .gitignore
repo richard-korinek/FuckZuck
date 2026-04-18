@@ -208,5 +208,5 @@ __marimo__/
 
 # FuckZuck
 .auth/
-state.json
+.data/
 birthdays_html.html
