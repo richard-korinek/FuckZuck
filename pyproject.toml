@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fuckzuck"
+version = "0.1.0"
+description = "Birthday bot for Meta/Facebook - scrape birthdays, post greetings, notify via email/SMS"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "playwright>=1.40.0",
+    "playwright-stealth>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "schedule>=1.2.0",
+    "twilio>=8.0.0",
+]
+
+[project.scripts]
+fuckzuck = "fuckzuck.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fuckzuck"]
